@@ -443,18 +443,42 @@ fun FavoriteCard(
     cocktail: CocktailEntity,
     darkMode: Boolean,
     rating: Int,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onSelectToggle: () -> Unit,
     onRemoveFavorite: () -> Unit,
     onOpenDetail: () -> Unit
 ) {
+    val favoriteCardColor = cardColor(darkMode)
+
     Card(
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor(darkMode)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                if (darkMode) {
+                    Color(0x33E34B5F)
+                } else {
+                    Color(0xFFFFEBEE)
+                }
+            } else {
+                favoriteCardColor
+            }
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.animateContentSize()
+        modifier = Modifier
+            .animateContentSize()
+            .clickable {
+                if (isSelectionMode) {
+                    onSelectToggle()
+                } else {
+                    onOpenDetail()
+                }
+            }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = cocktail.thumbnail,
@@ -475,34 +499,55 @@ fun FavoriteCard(
                     fontSize = 16.sp,
                     color = titleColor(darkMode)
                 )
-                Text(cocktail.category, color = subColor(darkMode))
+
+                Text(
+                    cocktail.category,
+                    color = subColor(darkMode)
+                )
 
                 if (rating > 0) {
                     ReadOnlyRatingStars(rating = rating)
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onOpenDetail,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (darkMode) DarkCardColor else SurfaceColor,
-                            contentColor = if (darkMode) DarkTextPrimaryColor else TextPrimaryColor
-                        ),
-                        border = BorderStroke(1.dp, PrimarySoftColor)
-                    ) {
-                        Text("Voir la recette")
-                    }
+                if (!isSelectionMode) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = onOpenDetail,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (darkMode) DarkCardColor else SurfaceColor,
+                                contentColor = if (darkMode) DarkTextPrimaryColor else TextPrimaryColor
+                            ),
+                            border = BorderStroke(1.dp, PrimarySoftColor)
+                        ) {
+                            Text("Voir la recette")
+                        }
 
-                    OutlinedButton(
-                        onClick = onRemoveFavorite,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = PrimaryColor,
-                            contentColor = Color.White
-                        ),
-                        border = BorderStroke(1.dp, PrimaryColor)
-                    ) {
-                        Text("Retirer", color = Color.White)
+                        OutlinedButton(
+                            onClick = onRemoveFavorite,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = PrimaryColor,
+                                contentColor = Color.White
+                            ),
+                            border = BorderStroke(1.dp, PrimaryColor)
+                        ) {
+                            Text("Retirer", color = Color.White)
+                        }
                     }
+                }
+            }
+
+            if (isSelectionMode) {
+                Surface(
+                    onClick = onSelectToggle,
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) PrimaryColor else favoriteCardColor,
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = if (isSelected) "✓" else "○",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        color = if (isSelected) Color.White else subColor(darkMode)
+                    )
                 }
             }
         }

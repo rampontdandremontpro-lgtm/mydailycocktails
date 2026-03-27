@@ -1,12 +1,10 @@
 package com.supdevinci.mydailycocktails.view.components
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,21 +20,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.supdevinci.mydailycocktails.navigation.Routes
-import com.supdevinci.mydailycocktails.ui.theme.AppGlassDark
-import com.supdevinci.mydailycocktails.ui.theme.AppGlassStrongLight
 import com.supdevinci.mydailycocktails.ui.theme.BrandRed
-import com.supdevinci.mydailycocktails.ui.theme.GlassBorderDark
-import com.supdevinci.mydailycocktails.ui.theme.GlassBorderLight
+import com.supdevinci.mydailycocktails.ui.theme.DarkBg2
 import com.supdevinci.mydailycocktails.ui.theme.IconMutedDark
 import com.supdevinci.mydailycocktails.ui.theme.IconMutedLight
 import com.supdevinci.mydailycocktails.ui.theme.TextPrimaryDark
@@ -45,69 +38,135 @@ import com.supdevinci.mydailycocktails.ui.theme.TextPrimaryLight
 @Composable
 fun BottomBar(
     currentRoute: String?,
+    darkMode: Boolean,
     onNavigate: (String) -> Unit,
-    visible: Boolean = true
+    visible: Boolean
 ) {
-    if (!visible) return
-
-    val items = listOf(
-        Triple(Routes.RANDOM, Icons.Outlined.Home, "Accueil"),
-        Triple(Routes.SEARCH, Icons.Outlined.Search, "Rechercher"),
-        Triple(Routes.FAVORITES, Icons.Outlined.FavoriteBorder, "Favoris"),
-        Triple(Routes.HISTORY, Icons.Outlined.History, "Historique")
-    )
-
-    Surface(
-        color = AppGlassStrongLight,
-        shadowElevation = 16.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorderLight)
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+        val containerColor = if (darkMode) DarkBg2 else Color.White
+        val selectedBackground = BrandRed.copy(alpha = if (darkMode) 0.18f else 0.12f)
+        val selectedColor = BrandRed
+        val unselectedIconColor = if (darkMode) IconMutedDark else IconMutedLight
+        val unselectedTextColor = if (darkMode) TextPrimaryDark else TextPrimaryLight
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = containerColor,
+            shadowElevation = 10.dp
         ) {
-            items.forEach { (route, icon, label) ->
-                val selected = currentRoute == route
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.95f else 1f,
-                    label = "bottom_bar_item_scale_$route"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BottomBarItem(
+                    label = "Accueil",
+                    selected = currentRoute == Routes.RANDOM,
+                    selectedColor = selectedColor,
+                    selectedBackground = selectedBackground,
+                    unselectedIconColor = unselectedIconColor,
+                    unselectedTextColor = unselectedTextColor,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Home,
+                            contentDescription = "Accueil",
+                            tint = if (currentRoute == Routes.RANDOM) selectedColor else unselectedIconColor
+                        )
+                    },
+                    onClick = { onNavigate(Routes.RANDOM) }
                 )
 
-                Column(
-                    modifier = Modifier
-                        .scale(scale)
-                        .animateContentSize()
-                        .background(
-                            if (selected) BrandRed.copy(alpha = 0.12f) else Color.Transparent,
-                            RoundedCornerShape(16.dp)
+                BottomBarItem(
+                    label = "Rechercher",
+                    selected = currentRoute == Routes.SEARCH,
+                    selectedColor = selectedColor,
+                    selectedBackground = selectedBackground,
+                    unselectedIconColor = unselectedIconColor,
+                    unselectedTextColor = unselectedTextColor,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Rechercher",
+                            tint = if (currentRoute == Routes.SEARCH) selectedColor else unselectedIconColor
                         )
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null
-                        ) { onNavigate(route) }
-                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = if (selected) BrandRed else IconMutedLight
-                    )
+                    },
+                    onClick = { onNavigate(Routes.SEARCH) }
+                )
 
-                    Text(
-                        text = label,
-                        color = if (selected) BrandRed else TextPrimaryLight,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        fontSize = 12.sp
-                    )
-                }
+                BottomBarItem(
+                    label = "Favoris",
+                    selected = currentRoute == Routes.FAVORITES,
+                    selectedColor = selectedColor,
+                    selectedBackground = selectedBackground,
+                    unselectedIconColor = unselectedIconColor,
+                    unselectedTextColor = unselectedTextColor,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Favoris",
+                            tint = if (currentRoute == Routes.FAVORITES) selectedColor else unselectedIconColor
+                        )
+                    },
+                    onClick = { onNavigate(Routes.FAVORITES) }
+                )
+
+                BottomBarItem(
+                    label = "Historique",
+                    selected = currentRoute == Routes.HISTORY,
+                    selectedColor = selectedColor,
+                    selectedBackground = selectedBackground,
+                    unselectedIconColor = unselectedIconColor,
+                    unselectedTextColor = unselectedTextColor,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.History,
+                            contentDescription = "Historique",
+                            tint = if (currentRoute == Routes.HISTORY) selectedColor else unselectedIconColor
+                        )
+                    },
+                    onClick = { onNavigate(Routes.HISTORY) }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun BottomBarItem(
+    label: String,
+    selected: Boolean,
+    selectedColor: Color,
+    selectedBackground: Color,
+    unselectedIconColor: Color,
+    unselectedTextColor: Color,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .background(
+                color = if (selected) selectedBackground else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        icon()
+        Text(
+            text = label,
+            color = if (selected) selectedColor else unselectedTextColor,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

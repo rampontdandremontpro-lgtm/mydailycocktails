@@ -2,7 +2,6 @@ package com.supdevinci.mydailycocktails.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand palette — inspired by the new splash/logo
 val BrandRed = Color(0xFFE34B5F)
 val BrandCoral = Color(0xFFFF7C5C)
 val BrandLime = Color(0xFFA6CC57)
@@ -11,7 +10,6 @@ val BrandLimeDeep = Color(0xFF7EAF3C)
 val BrandHeading = Color(0xFFD6455A)
 val BrandHeadingDark = Color(0xFFFF8A7B)
 
-// Soft light surfaces
 val AppBgTop = Color(0xFFF7EEF2)
 val AppBgMid = Color(0xFFF8F1F4)
 val AppBgBottom = Color(0xFFF7F3EC)
@@ -27,7 +25,6 @@ val IconMutedLight = Color(0xFF555F73)
 
 val SoftShadowLight = Color(0x1A55323A)
 
-// Dark palette — softer for the eyes
 val DarkBg = Color(0xFF16171D)
 val DarkBg2 = Color(0xFF1F2128)
 val DarkBg3 = Color(0xFF14151A)
@@ -43,17 +40,14 @@ val IconMutedDark = Color(0xFFD1D6E0)
 
 val SoftShadowDark = Color(0x66000000)
 
-// Existing names kept so the rest of the project still works
 val PurpleStart = AppBgTop
 val PurpleMid = AppBgMid
 val PeachEnd = AppBgBottom
 
-// Button gradient
 val ButtonGradientStart = BrandRed
 val ButtonGradientMid = BrandCoral
 val ButtonGradientEnd = BrandLime
 
-// Legacy aliases kept for older screens/components
 val Primary = BrandRed
 val PrimarySoft = BrandRed.copy(alpha = 0.14f)
 

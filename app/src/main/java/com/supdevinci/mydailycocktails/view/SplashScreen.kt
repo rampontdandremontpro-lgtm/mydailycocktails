@@ -1,18 +1,25 @@
 package com.supdevinci.mydailycocktails.view
 
 import android.os.Build
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +35,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -40,6 +46,9 @@ import coil.request.ImageRequest
 import com.supdevinci.mydailycocktails.R
 import com.supdevinci.mydailycocktails.model.CocktailState
 import com.supdevinci.mydailycocktails.navigation.Routes
+import com.supdevinci.mydailycocktails.ui.theme.BrandCoral
+import com.supdevinci.mydailycocktails.ui.theme.BrandLime
+import com.supdevinci.mydailycocktails.ui.theme.BrandRed
 import com.supdevinci.mydailycocktails.ui.theme.PeachEnd
 import com.supdevinci.mydailycocktails.ui.theme.PurpleMid
 import com.supdevinci.mydailycocktails.ui.theme.PurpleStart
@@ -119,28 +128,24 @@ fun SplashScreen(
             Text(
                 text = "My Daily Cocktails",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
                 color = Color(0xFF13264C)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "636 cocktail à découvrir\uD83C\uDF79",
+                text = "636 cocktail à découvrir 🍹",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color(0xFF475467)
             )
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            LinearProgressIndicator(
-                progress = { progress },
+            AnimatedGradientProgressBar(
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth(0.72f)
                     .height(10.dp)
-                    .clip(RoundedCornerShape(50.dp)),
-                color = Color(0xFFB832D9),
-                trackColor = Color.White.copy(alpha = 0.55f)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -149,6 +154,64 @@ fun SplashScreen(
                 text = "Chargement : ${(progress * 100).toInt()}%",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF667085)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnimatedGradientProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(50.dp)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "progress_bar_shimmer")
+
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -160f,
+        targetValue = 420f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "progress_bar_shimmer_offset"
+    )
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.55f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .fillMaxHeight()
+                .clip(shape)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            BrandRed,
+                            BrandCoral,
+                            BrandLime
+                        )
+                    )
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.28f)
+                    .offset(x = shimmerOffset.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.35f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
         }
     }

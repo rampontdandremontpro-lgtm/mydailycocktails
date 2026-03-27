@@ -76,6 +76,7 @@ fun CocktailNavHost(
         bottomBar = {
             BottomBar(
                 currentRoute = currentRoute,
+                darkMode = darkMode,
                 onNavigate = { route ->
                     val popped = navController.popBackStack(
                         route = route,
@@ -229,6 +230,7 @@ fun CocktailNavHost(
                         viewModel = viewModel,
                         darkMode = darkMode,
                         onToggleTheme = onToggleTheme,
+                        bottomPadding = innerPadding,
                         onOpenDetail = { id ->
                             navController.navigate(Routes.detailRoute(id))
                         }
@@ -266,6 +268,7 @@ fun CocktailNavHost(
                         viewModel = viewModel,
                         darkMode = darkMode,
                         onToggleTheme = onToggleTheme,
+                        bottomPadding = innerPadding,
                         onOpenDetail = { id ->
                             navController.navigate(Routes.detailRoute(id))
                         }
@@ -311,6 +314,7 @@ fun CocktailNavHost(
                         cocktailId = cocktailId,
                         darkMode = darkMode,
                         onToggleTheme = onToggleTheme,
+                        bottomPadding = innerPadding,
                         onBack = { navController.popBackStack() }
                     )
                 }

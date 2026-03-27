@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.luminance
 import com.supdevinci.mydailycocktails.ui.theme.AppGlassDark
 import com.supdevinci.mydailycocktails.ui.theme.AppGlassLight
 import com.supdevinci.mydailycocktails.ui.theme.ButtonGradientEnd
@@ -38,45 +41,39 @@ fun GradientPrimaryButton(
     text: String,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        label = "gradient_button_scale"
-    )
+    val isDarkMode = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 12.dp
-    ) {
-        Box(
-            modifier = Modifier.background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        ButtonGradientStart,
-                        ButtonGradientMid,
-                        ButtonGradientEnd
-                    )
-                )
-            ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+    val gradient = Brush.horizontalGradient(
+        colors = if (isDarkMode) {
+            listOf(
+                ButtonGradientEnd,
+                ButtonGradientMid,
+                ButtonGradientStart
+            )
+        } else {
+            listOf(
+                ButtonGradientStart,
+                ButtonGradientMid,
+                ButtonGradientEnd
             )
         }
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(gradient)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = androidx.compose.ui.graphics.Color.White,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp
+        )
     }
 }
 

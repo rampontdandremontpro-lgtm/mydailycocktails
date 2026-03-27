@@ -2,6 +2,7 @@ package com.supdevinci.mydailycocktails.view
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
@@ -21,8 +23,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,8 +47,10 @@ import com.supdevinci.mydailycocktails.view.components.AppCard
 import com.supdevinci.mydailycocktails.view.components.ErrorCard
 import com.supdevinci.mydailycocktails.view.components.LoadingCard
 import com.supdevinci.mydailycocktails.view.components.PageHeader
+import com.supdevinci.mydailycocktails.view.components.ScrollToTopFab
 import com.supdevinci.mydailycocktails.view.components.SearchResultCard
 import com.supdevinci.mydailycocktails.viewmodel.CocktailViewModel
+import kotlinx.coroutines.launch
 
 private fun titleColor(darkMode: Boolean): Color =
     if (darkMode) DarkTextPrimaryColor else TextPrimaryColor
@@ -80,191 +87,213 @@ fun SearchScreen(
         "Cocoa"
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 18.dp),
-        contentPadding = PaddingValues(bottom = bottomPadding.calculateBottomPadding() + 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            PageHeader(
-                title = "Rechercher",
-                subtitle = "Trouve ton cocktail par son nom ou un ingrédient",
-                darkMode = darkMode,
-                onToggleTheme = onToggleTheme
-            )
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val showScrollToTop by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 2 || listState.firstVisibleItemScrollOffset > 500
         }
+    }
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = searchUiState.query,
-                    onValueChange = { viewModel.updateSearchQuery(it) },
-                    placeholder = {
-                        Text(
-                            text = "Ex: Mojito, Gin, Kiwi...",
-                            color = subColor(darkMode)
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 18.dp),
+            contentPadding = PaddingValues(bottom = bottomPadding.calculateBottomPadding() + 96.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                PageHeader(
+                    title = "Rechercher",
+                    subtitle = "Trouve ton cocktail par son nom ou un ingrédient",
+                    darkMode = darkMode,
+                    onToggleTheme = onToggleTheme
                 )
+            }
 
-                Surface(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clickable {
-                            viewModel.searchCocktails(
-                                query = searchUiState.query,
-                                typeFilter = typeFilter,
-                                categoryFilter = categoryFilter
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = searchUiState.query,
+                        onValueChange = { viewModel.updateSearchQuery(it) },
+                        placeholder = {
+                            Text(
+                                text = "Ex: Mojito, Gin, Kiwi...",
+                                color = subColor(darkMode)
                             )
                         },
-                    color = PrimaryColor,
-                    shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Surface(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clickable {
+                                viewModel.searchCocktails(
+                                    query = searchUiState.query,
+                                    typeFilter = typeFilter,
+                                    categoryFilter = categoryFilter
+                                )
+                            },
+                        color = PrimaryColor,
+                        shape = RoundedCornerShape(10.dp),
+                        shadowElevation = 0.dp
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Rechercher",
+                            tint = Color.White,
+                            modifier = Modifier.padding(11.dp)
+                        )
+                    }
+                }
+            }
+
+            item {
+                Surface(
+                    modifier = Modifier.clickable { showFilters = !showFilters },
+                    shape = RoundedCornerShape(12.dp),
+                    color = chipBgColor(darkMode),
                     shadowElevation = 0.dp
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Rechercher",
-                        tint = Color.White,
-                        modifier = Modifier.padding(11.dp)
+                    Text(
+                        text = "⌕ Filtres",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        color = titleColor(darkMode)
                     )
                 }
             }
-        }
 
-        item {
-            Surface(
-                modifier = Modifier.clickable { showFilters = !showFilters },
-                shape = RoundedCornerShape(12.dp),
-                color = chipBgColor(darkMode),
-                shadowElevation = 0.dp
-            ) {
-                Text(
-                    text = "⌕ Filtres",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    color = titleColor(darkMode)
-                )
-            }
-        }
-
-        if (showFilters) {
-            item {
-                AppCard(darkMode = darkMode) {
-                    Text(
-                        text = "Type",
-                        color = titleColor(darkMode)
-                    )
-
-                    Spacer(modifier = Modifier.padding(top = 4.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChipItem(
-                            text = "Tous",
-                            isSelected = typeFilter == "Tous",
-                            darkMode = darkMode,
-                            onClick = { typeFilter = "Tous" }
+            if (showFilters) {
+                item {
+                    AppCard(darkMode = darkMode) {
+                        Text(
+                            text = "Type",
+                            color = titleColor(darkMode)
                         )
-                        FilterChipItem(
-                            text = "🍸 Alcoolisé",
-                            isSelected = typeFilter == "Alcoolisé",
-                            darkMode = darkMode,
-                            onClick = { typeFilter = "Alcoolisé" }
-                        )
-                        FilterChipItem(
-                            text = "🧃 Sans alcool",
-                            isSelected = typeFilter == "Sans alcool",
-                            darkMode = darkMode,
-                            onClick = { typeFilter = "Sans alcool" }
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.padding(top = 16.dp))
+                        Spacer(modifier = Modifier.padding(top = 4.dp))
 
-                    Text(
-                        text = "Catégorie",
-                        color = titleColor(darkMode)
-                    )
-
-                    Spacer(modifier = Modifier.padding(top = 4.dp))
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        categories.forEach { label ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChipItem(
-                                text = label,
-                                isSelected = categoryFilter == label,
+                                text = "Tous",
+                                isSelected = typeFilter == "Tous",
                                 darkMode = darkMode,
-                                onClick = { categoryFilter = label }
+                                onClick = { typeFilter = "Tous" }
+                            )
+                            FilterChipItem(
+                                text = "🍸 Alcoolisé",
+                                isSelected = typeFilter == "Alcoolisé",
+                                darkMode = darkMode,
+                                onClick = { typeFilter = "Alcoolisé" }
+                            )
+                            FilterChipItem(
+                                text = "🧃 Sans alcool",
+                                isSelected = typeFilter == "Sans alcool",
+                                darkMode = darkMode,
+                                onClick = { typeFilter = "Sans alcool" }
                             )
                         }
+
+                        Spacer(modifier = Modifier.padding(top = 16.dp))
+
+                        Text(
+                            text = "Catégorie",
+                            color = titleColor(darkMode)
+                        )
+
+                        Spacer(modifier = Modifier.padding(top = 4.dp))
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categories.forEach { label ->
+                                FilterChipItem(
+                                    text = label,
+                                    isSelected = categoryFilter == label,
+                                    darkMode = darkMode,
+                                    onClick = { categoryFilter = label }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            when {
+                searchUiState.isLoading -> {
+                    item { LoadingCard(darkMode = darkMode) }
+                }
+
+                !searchUiState.hasSearched -> {
+                    item { SearchEmptyBlock(darkMode = darkMode) }
+                }
+
+                searchUiState.errorMessage != null -> {
+                    item {
+                        ErrorCard(
+                            message = searchUiState.errorMessage ?: "Erreur",
+                            darkMode = darkMode,
+                            onRetry = {
+                                viewModel.searchCocktails(
+                                    query = searchUiState.query,
+                                    typeFilter = typeFilter,
+                                    categoryFilter = categoryFilter
+                                )
+                            }
+                        )
+                    }
+                }
+
+                searchUiState.results.isEmpty() -> {
+                    item {
+                        Text(
+                            text = "0 résultat",
+                            color = titleColor(darkMode)
+                        )
+                    }
+                }
+
+                else -> {
+                    item {
+                        Text(
+                            text = "${searchUiState.results.size} résultats",
+                            color = titleColor(darkMode)
+                        )
+                    }
+
+                    items(searchUiState.results, key = { it.idDrink }) { cocktail ->
+                        SearchResultCard(
+                            cocktail = cocktail,
+                            darkMode = darkMode,
+                            isFavorite = favoriteIds.contains(cocktail.idDrink),
+                            onFavoriteClick = { viewModel.toggleFavorite(cocktail) },
+                            onOpenDetail = { onOpenDetail(cocktail) }
+                        )
                     }
                 }
             }
         }
 
-        when {
-            searchUiState.isLoading -> {
-                item { LoadingCard(darkMode = darkMode) }
-            }
-
-            !searchUiState.hasSearched -> {
-                item { SearchEmptyBlock(darkMode = darkMode) }
-            }
-
-            searchUiState.errorMessage != null -> {
-                item {
-                    ErrorCard(
-                        message = searchUiState.errorMessage ?: "Erreur",
-                        darkMode = darkMode,
-                        onRetry = {
-                            viewModel.searchCocktails(
-                                query = searchUiState.query,
-                                typeFilter = typeFilter,
-                                categoryFilter = categoryFilter
-                            )
-                        }
-                    )
+        ScrollToTopFab(
+            visible = showScrollToTop,
+            darkMode = darkMode,
+            bottomOffset = bottomPadding.calculateBottomPadding() + 24.dp,
+            onClick = {
+                scope.launch {
+                    listState.animateScrollToItem(0)
                 }
             }
-
-            searchUiState.results.isEmpty() -> {
-                item {
-                    Text(
-                        text = "0 résultat",
-                        color = titleColor(darkMode)
-                    )
-                }
-            }
-
-            else -> {
-                item {
-                    Text(
-                        text = "${searchUiState.results.size} résultats",
-                        color = titleColor(darkMode)
-                    )
-                }
-
-                items(searchUiState.results, key = { it.idDrink }) { cocktail ->
-                    SearchResultCard(
-                        cocktail = cocktail,
-                        darkMode = darkMode,
-                        isFavorite = favoriteIds.contains(cocktail.idDrink),
-                        onFavoriteClick = { viewModel.toggleFavorite(cocktail) },
-                        onOpenDetail = { onOpenDetail(cocktail) }
-                    )
-                }
-            }
-        }
+        )
     }
 }
 

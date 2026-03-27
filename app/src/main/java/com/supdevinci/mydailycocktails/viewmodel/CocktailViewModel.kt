@@ -12,9 +12,7 @@ import com.supdevinci.mydailycocktails.model.Cocktail
 import com.supdevinci.mydailycocktails.model.CocktailListItem
 import com.supdevinci.mydailycocktails.model.CocktailState
 import com.supdevinci.mydailycocktails.model.HistoryItem
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +32,8 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
     private val api = RetrofitInstance.api
     private val cocktailDao = CocktailDatabase.getDatabase(application).cocktailDao()
     private val appPrefs = AppPrefs(application)
+
+    private val detailsCache = mutableMapOf<String, Cocktail>()
 
     private val _homeState = MutableStateFlow<CocktailState>(CocktailState.Loading)
     val homeState: StateFlow<CocktailState> = _homeState.asStateFlow()
@@ -109,6 +109,7 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
             try {
                 val cocktail = api.getRandomCocktail().drinks?.firstOrNull()
                 _homeState.value = if (cocktail != null) {
+                    detailsCache[cocktail.idDrink] = cocktail
                     addToHistory(cocktail)
                     CocktailState.Success(cocktail)
                 } else {
@@ -168,7 +169,10 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
                 _searchUiState.value = _searchUiState.value.copy(
                     results = emptyList(),
                     isLoading = false,
-                    errorMessage = "Erreur : ${e.message}",
+                    errorMessage = when {
+                        e.message?.contains("429") == true -> "Trop de requêtes, réessaie dans quelques secondes."
+                        else -> "Erreur : ${e.message}"
+                    },
                     hasSearched = true
                 )
             }
@@ -183,10 +187,10 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
         val byName = api.searchCocktailsByName(query).drinks.orEmpty()
 
         val fullResults = if (byName.isNotEmpty()) {
-            byName
+            byName.onEach { detailsCache[it.idDrink] = it }
         } else {
             val ingredientItems = api.filterCocktailsByIngredient(query).drinks.orEmpty()
-            resolveFullCocktails(ingredientItems)
+            resolveFullCocktails(ingredientItems, maxItems = 12)
         }
 
         return fullResults.filterByTypeAndCategory(
@@ -202,89 +206,56 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
         val hasTypeFilter = typeFilter != "Tous"
         val hasCategoryFilter = categoryFilter != "Toutes"
 
-        val byTypeItems = when (typeFilter) {
-            "Alcoolisé" -> api.filterCocktailsByAlcoholic("Alcoholic").drinks.orEmpty()
-            "Sans alcool" -> api.filterCocktailsByAlcoholic("Non_Alcoholic").drinks.orEmpty()
-            else -> emptyList()
-        }
-
-        val byCategoryItems = when (categoryFilter) {
-            "Toutes" -> emptyList()
-            else -> api.filterCocktailsByCategory(categoryFilter).drinks.orEmpty()
-        }
-
-        return when {
-            hasTypeFilter && hasCategoryFilter -> {
-                val categoryIds = byCategoryItems.map { it.idDrink }.toSet()
-                val mergedItems = byTypeItems.filter { it.idDrink in categoryIds }
-
-                mapFilterItemsToPartialCocktails(
-                    items = mergedItems,
-                    typeFilter = typeFilter,
-                    categoryFilter = categoryFilter
-                )
-            }
-
+        val baseItems = when {
+            hasCategoryFilter -> api.filterCocktailsByCategory(categoryFilter).drinks.orEmpty()
             hasTypeFilter -> {
-                mapFilterItemsToPartialCocktails(
-                    items = byTypeItems,
-                    typeFilter = typeFilter,
-                    categoryFilter = categoryFilter
-                )
+                when (typeFilter) {
+                    "Alcoolisé" -> api.filterCocktailsByAlcoholic("Alcoholic").drinks.orEmpty()
+                    "Sans alcool" -> api.filterCocktailsByAlcoholic("Non_Alcoholic").drinks.orEmpty()
+                    else -> emptyList()
+                }
             }
-
-            hasCategoryFilter -> {
-                // Ici on reconstruit les cocktails complets pour récupérer le type alcoolisé / non alcoolisé
-                resolveFullCocktails(byCategoryItems).filterByTypeAndCategory(
-                    typeFilter = typeFilter,
-                    categoryFilter = categoryFilter
-                )
-            }
-
             else -> emptyList()
         }
+
+        val fullResults = resolveFullCocktails(
+            items = baseItems,
+            maxItems = baseItems.size
+        )
+
+        return fullResults.filterByTypeAndCategory(
+            typeFilter = typeFilter,
+            categoryFilter = categoryFilter
+        )
     }
 
-    private suspend fun resolveFullCocktails(items: List<CocktailListItem>): List<Cocktail> =
-        coroutineScope {
-            items
-                .distinctBy { it.idDrink }
-                .take(20)
-                .map { item ->
-                    async {
-                        api.getCocktailById(item.idDrink).drinks?.firstOrNull()
+    private suspend fun resolveFullCocktails(
+        items: List<CocktailListItem>,
+        maxItems: Int
+    ): List<Cocktail> {
+        val results = mutableListOf<Cocktail>()
+
+        items
+            .distinctBy { it.idDrink }
+            .take(maxItems)
+            .forEach { item ->
+                val cached = detailsCache[item.idDrink]
+                if (cached != null) {
+                    results.add(cached)
+                } else {
+                    try {
+                        val cocktail = api.getCocktailById(item.idDrink).drinks?.firstOrNull()
+                        if (cocktail != null) {
+                            detailsCache[cocktail.idDrink] = cocktail
+                            results.add(cocktail)
+                        }
+                        delay(120)
+                    } catch (_: Exception) {
                     }
                 }
-                .awaitAll()
-                .filterNotNull()
-        }
-
-    private fun mapFilterItemsToPartialCocktails(
-        items: List<CocktailListItem>,
-        typeFilter: String,
-        categoryFilter: String
-    ): List<Cocktail> {
-        val alcoholicValue = when (typeFilter) {
-            "Alcoolisé" -> "Alcoholic"
-            "Sans alcool" -> "Non alcoholic"
-            else -> null
-        }
-
-        val categoryValue = if (categoryFilter == "Toutes") null else categoryFilter
-
-        return items
-            .distinctBy { it.idDrink }
-            .map { item ->
-                Cocktail(
-                    idDrink = item.idDrink,
-                    strDrink = item.strDrink,
-                    strDrinkThumb = item.strDrinkThumb,
-                    strCategory = categoryValue,
-                    strAlcoholic = alcoholicValue,
-                    strGlass = null,
-                    strInstructions = null
-                )
             }
+
+        return results
     }
 
     private fun List<Cocktail>.filterByTypeAndCategory(
@@ -294,26 +265,35 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
         return this
             .filter { cocktail ->
                 when (typeFilter) {
-                    "Alcoolisé" -> cocktail.strAlcoholic.equals("Alcoholic", ignoreCase = true)
+                    "Alcoolisé" -> {
+                        cocktail.strAlcoholic.equals("Alcoholic", ignoreCase = true) ||
+                                cocktail.strAlcoholic.equals("Optional alcohol", ignoreCase = true)
+                    }
+
                     "Sans alcool" -> {
                         cocktail.strAlcoholic.equals("Non alcoholic", ignoreCase = true) ||
                                 cocktail.strAlcoholic.equals("Non Alcoholic", ignoreCase = true)
                     }
+
                     else -> true
                 }
             }
             .filter { cocktail ->
                 if (categoryFilter == "Toutes") true
-                else cocktail.strCategory == categoryFilter
+                else cocktail.strCategory.equals(categoryFilter, ignoreCase = true)
             }
+            .distinctBy { it.idDrink }
     }
 
     fun getCocktailById(id: String) {
         viewModelScope.launch {
             _detailState.value = CocktailState.Loading
             try {
-                val cocktail = api.getCocktailById(id).drinks?.firstOrNull()
+                val cached = detailsCache[id]
+                val cocktail = cached ?: api.getCocktailById(id).drinks?.firstOrNull()
+
                 _detailState.value = if (cocktail != null) {
+                    detailsCache[cocktail.idDrink] = cocktail
                     addToHistory(cocktail)
                     loadSuggestions(cocktail.idDrink)
                     CocktailState.Success(cocktail)
@@ -329,12 +309,18 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
     fun loadSuggestions(excludedId: String) {
         viewModelScope.launch {
             try {
-                val jobs = List(4) { async { api.getRandomCocktail().drinks?.firstOrNull() } }
-                val results = jobs.mapNotNull { it.await() }
-                    .filter { it.idDrink != excludedId }
-                    .distinctBy { it.idDrink }
-                    .take(3)
-                _suggestions.value = results
+                val results = mutableListOf<Cocktail>()
+                repeat(5) {
+                    val cocktail = api.getRandomCocktail().drinks?.firstOrNull()
+                    if (cocktail != null && cocktail.idDrink != excludedId) {
+                        detailsCache[cocktail.idDrink] = cocktail
+                        if (results.none { it.idDrink == cocktail.idDrink }) {
+                            results.add(cocktail)
+                        }
+                    }
+                    delay(100)
+                }
+                _suggestions.value = results.take(3)
             } catch (_: Exception) {
                 _suggestions.value = emptyList()
             }

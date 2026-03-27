@@ -1,111 +1,288 @@
 package com.supdevinci.mydailycocktails.view
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.supdevinci.mydailycocktails.data.utils.LocalCocktailState
+import com.supdevinci.mydailycocktails.ui.theme.BrandCoral
+import com.supdevinci.mydailycocktails.ui.theme.BrandLime
 import com.supdevinci.mydailycocktails.view.components.EmptyCard
 import com.supdevinci.mydailycocktails.view.components.ErrorCard
 import com.supdevinci.mydailycocktails.view.components.FavoriteCard
 import com.supdevinci.mydailycocktails.view.components.Header
 import com.supdevinci.mydailycocktails.view.components.LoadingCard
+import com.supdevinci.mydailycocktails.view.components.ScrollToTopFab
 import com.supdevinci.mydailycocktails.view.components.StatsCard
 import com.supdevinci.mydailycocktails.viewmodel.CocktailViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun FavoritesScreen(
     viewModel: CocktailViewModel,
     darkMode: Boolean,
     onToggleTheme: () -> Unit,
+    bottomPadding: PaddingValues,
     onOpenDetail: (String) -> Unit
 ) {
     val localState by viewModel.localState.collectAsStateWithLifecycle()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 20.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+
+    var showClearAllDialog by remember { mutableStateOf(false) }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+
+    val selectButtonBackground = if (darkMode) BrandCoral else BrandLime
+    val selectButtonTextColor = Color(0xFF1C2433)
+
+    val dangerButtonBackground = Color(0xFFE34B5F)
+    val dangerButtonTextColor = Color.White
+
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val showScrollToTop by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 2 || listState.firstVisibleItemScrollOffset > 500
+        }
+    }
+
+    if (showClearAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearAllDialog = false },
+            title = { Text("Supprimer tous les favoris ?") },
+            text = { Text("Cette action supprimera définitivement tous les cocktails de tes favoris.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val cocktails = (localState as? LocalCocktailState.Success)?.cocktails.orEmpty()
+                        cocktails.forEach { cocktail ->
+                            viewModel.removeFavorite(cocktail.idDrink)
+                        }
+                        selectionMode = false
+                        selectedIds = emptySet()
+                        showClearAllDialog = false
+                    }
+                ) {
+                    Text("Supprimer", color = dangerButtonBackground)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showClearAllDialog = false }
+                ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    if (showDeleteSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteSelectedDialog = false },
+            title = { Text("Supprimer la sélection ?") },
+            text = { Text("Cette action supprimera ${selectedIds.size} cocktail(s) sélectionné(s) des favoris.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedIds.forEach { id ->
+                            viewModel.removeFavorite(id)
+                        }
+                        selectedIds = emptySet()
+                        selectionMode = false
+                        showDeleteSelectedDialog = false
+                    }
+                ) {
+                    Text("Supprimer", color = dangerButtonBackground)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteSelectedDialog = false }
+                ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 20.dp),
+            contentPadding = PaddingValues(bottom = bottomPadding.calculateBottomPadding() + 96.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Header(
+                    title = "Mes favoris",
+                    subtitle = when (localState) {
+                        is LocalCocktailState.Success ->
+                            "${(localState as LocalCocktailState.Success).cocktails.size} cocktail sauvegardé(s)"
+                        else -> "Tes cocktails sauvegardés"
+                    },
+                    darkMode = darkMode,
+                    onToggleTheme = onToggleTheme
+                )
+            }
+
+            when (localState) {
+                is LocalCocktailState.Loading -> {
+                    item { LoadingCard(darkMode = darkMode) }
+                }
+
+                is LocalCocktailState.Empty -> {
+                    item {
+                        EmptyCard(
+                            title = "Aucun favori",
+                            subtitle = "Ajoute des cocktails depuis l'accueil ou la recherche.",
+                            darkMode = darkMode
+                        )
+                    }
+                }
+
+                is LocalCocktailState.Error -> {
+                    item {
+                        ErrorCard(
+                            message = (localState as LocalCocktailState.Error).message,
+                            darkMode = darkMode,
+                            onRetry = {}
+                        )
+                    }
+                }
+
+                is LocalCocktailState.Success -> {
+                    val cocktails = (localState as LocalCocktailState.Success).cocktails
+
+                    item {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.wrapContentWidth()
+                        ) {
+                            FavoriteActionButton(
+                                text = if (selectionMode) "Annuler" else "Sélectionner",
+                                background = selectButtonBackground,
+                                textColor = selectButtonTextColor,
+                                onClick = {
+                                    selectionMode = !selectionMode
+                                    if (!selectionMode) selectedIds = emptySet()
+                                }
+                            )
+
+                            FavoriteActionButton(
+                                text = "Tout supprimer",
+                                background = dangerButtonBackground,
+                                textColor = dangerButtonTextColor,
+                                onClick = { showClearAllDialog = true }
+                            )
+
+                            if (selectionMode && selectedIds.isNotEmpty()) {
+                                FavoriteActionButton(
+                                    text = "Supprimer (${selectedIds.size})",
+                                    background = dangerButtonBackground,
+                                    textColor = dangerButtonTextColor,
+                                    onClick = { showDeleteSelectedDialog = true }
+                                )
+                            }
+                        }
+                    }
+
+                    items(cocktails, key = { it.idDrink }) { cocktail ->
+                        FavoriteCard(
+                            cocktail = cocktail,
+                            darkMode = darkMode,
+                            rating = viewModel.getRating(cocktail.idDrink),
+                            isSelectionMode = selectionMode,
+                            isSelected = selectedIds.contains(cocktail.idDrink),
+                            onSelectToggle = {
+                                selectedIds = if (selectedIds.contains(cocktail.idDrink)) {
+                                    selectedIds - cocktail.idDrink
+                                } else {
+                                    selectedIds + cocktail.idDrink
+                                }
+                            },
+                            onRemoveFavorite = {
+                                viewModel.removeFavorite(cocktail.idDrink)
+                                selectedIds = selectedIds - cocktail.idDrink
+                            },
+                            onOpenDetail = { onOpenDetail(cocktail.idDrink) }
+                        )
+                    }
+
+                    item {
+                        val alcoholicCount = cocktails.count {
+                            it.alcoholic.equals("Alcoholic", ignoreCase = true)
+                        }
+                        val nonAlcoholicCount = cocktails.count {
+                            !it.alcoholic.equals("Alcoholic", ignoreCase = true)
+                        }
+
+                        StatsCard(
+                            totalFavorites = cocktails.size,
+                            totalAlcoholic = alcoholicCount,
+                            totalNonAlcoholic = nonAlcoholicCount,
+                            darkMode = darkMode
+                        )
+                    }
+                }
+            }
+        }
+
+        ScrollToTopFab(
+            visible = showScrollToTop,
+            darkMode = darkMode,
+            bottomOffset = bottomPadding.calculateBottomPadding() + 24.dp,
+            onClick = {
+                scope.launch {
+                    listState.animateScrollToItem(0)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FavoriteActionButton(
+    text: String,
+    background: Color,
+    textColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        color = background,
+        shadowElevation = 0.dp
     ) {
-        item {
-            Header(
-                title = "Mes favoris",
-                subtitle = when (localState) {
-                    is LocalCocktailState.Success ->
-                        "${(localState as LocalCocktailState.Success).cocktails.size} cocktail sauvegardé(s)"
-                    else -> "Tes cocktails sauvegardés"
-                },
-                darkMode = darkMode,
-                onToggleTheme = onToggleTheme
-            )
-        }
-
-        when (localState) {
-            is LocalCocktailState.Loading -> {
-                item {
-                    LoadingCard(darkMode = darkMode)
-                }
-            }
-
-            is LocalCocktailState.Empty -> {
-                item {
-                    EmptyCard(
-                        title = "Aucun favori",
-                        subtitle = "Ajoute des cocktails depuis l'accueil ou la recherche.",
-                        darkMode = darkMode
-                    )
-                }
-            }
-
-            is LocalCocktailState.Error -> {
-                item {
-                    ErrorCard(
-                        message = (localState as LocalCocktailState.Error).message,
-                        darkMode = darkMode,
-                        onRetry = {}
-                    )
-                }
-            }
-
-            is LocalCocktailState.Success -> {
-                val cocktails = (localState as LocalCocktailState.Success).cocktails
-
-                items(cocktails, key = { it.idDrink }) { cocktail ->
-                    FavoriteCard(
-                        cocktail = cocktail,
-                        darkMode = darkMode,
-                        rating = viewModel.getRating(cocktail.idDrink),
-                        onRemoveFavorite = { viewModel.removeFavorite(cocktail.idDrink) },
-                        onOpenDetail = { onOpenDetail(cocktail.idDrink) }
-                    )
-                }
-
-                item {
-                    val alcoholicCount = cocktails.count {
-                        it.alcoholic.equals("Alcoholic", ignoreCase = true)
-                    }
-
-                    val nonAlcoholicCount = cocktails.count {
-                        !it.alcoholic.equals("Alcoholic", ignoreCase = true)
-                    }
-
-                    StatsCard(
-                        totalFavorites = cocktails.size,
-                        totalAlcoholic = alcoholicCount,
-                        totalNonAlcoholic = nonAlcoholicCount,
-                        darkMode = darkMode
-                    )
-                }
-            }
-        }
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            color = textColor,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

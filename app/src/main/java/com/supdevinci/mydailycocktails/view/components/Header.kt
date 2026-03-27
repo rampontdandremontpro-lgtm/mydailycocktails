@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
-import androidx.compose.material.icons.outlined.LocalBar
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -25,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,7 +32,6 @@ import com.supdevinci.mydailycocktails.ui.theme.AppGlassDark
 import com.supdevinci.mydailycocktails.ui.theme.AppGlassLight
 import com.supdevinci.mydailycocktails.ui.theme.BrandHeading
 import com.supdevinci.mydailycocktails.ui.theme.BrandHeadingDark
-import com.supdevinci.mydailycocktails.ui.theme.BrandLimeDeep
 import com.supdevinci.mydailycocktails.ui.theme.GlassBorderDark
 import com.supdevinci.mydailycocktails.ui.theme.GlassBorderLight
 import com.supdevinci.mydailycocktails.ui.theme.IconMutedDark
